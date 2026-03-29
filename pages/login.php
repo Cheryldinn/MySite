@@ -3,7 +3,7 @@ session_start();
 require_once '../database/connection.php';
 
 if (isset($_SESSION['user_id'])) {
-    header("Location: dashboard.php");
+    header("Location: index.php");
     exit;
 }
 
@@ -23,7 +23,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if (password_verify($password, $row['password'])) {
                 $_SESSION['user_id'] = $row['id'];
                 $_SESSION['username'] = $row['username'];
-                header("Location: dashboard.php");
+                header("Location: index.php");
                 exit;
             }
         }
