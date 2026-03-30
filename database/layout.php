@@ -9,7 +9,7 @@ function get_nav_link($href, $label, $icon, $active_page) {
 function render_sidebar($active = '') {
     $pages = basename($_SERVER['PHP_SELF']);
     $icons = [
-        'index.php' => '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>',
+        'dashboard.php' => '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/></svg>',
         'class_list.php' => '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>',
         'subjects.php' => '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>',
         'teachers.php' => '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>',
@@ -20,7 +20,7 @@ function render_sidebar($active = '') {
     ];
 
     $nav = [
-        'OVERVIEW'  => ['index.php' => 'Dashboard'],
+        'OVERVIEW'  => ['dashboard.php' => 'Dashboard'],
         'MANAGE'    => ['class_list.php' => 'Classes', 'subjects.php' => 'Subjects', 'teachers.php' => 'Teachers'],
         'TIMETABLE' => ['generate.php' => 'Generate', 'view.php' => 'View Timetable', 'edit.php' => 'Edit Schedule'],
         'SYSTEM'    => ['settings.php' => 'Settings'],

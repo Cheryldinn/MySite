@@ -1,39 +1,194 @@
 <?php
 session_start();
-if (!isset($_SESSION['user_id'])) { header("Location: login.php"); exit; }
 require_once '../database/connection.php';
-require_once '../database/layout.php';
 
-$stats = [
-    'classes'  => $conn->query("SELECT COUNT(*) as c FROM classes")->fetch_assoc()['c'],
-    'subjects' => $conn->query("SELECT COUNT(*) as c FROM subjects")->fetch_assoc()['c'],
-    'teachers' => $conn->query("SELECT COUNT(*) as c FROM teachers")->fetch_assoc()['c'],
-    'slots'    => $conn->query("SELECT COUNT(*) as c FROM timetable")->fetch_assoc()['c'],
-];
+if (isset($_SESSION['user_id'])) {
+    header("Location: dashboard.php");
+    exit;
+}
 
-$recent_timetable = $conn->query("
-    SELECT t.*, c.class_name, c.section, s.subject_name, te.teacher_name
-    FROM timetable t
-    JOIN classes c ON t.class_id = c.id
-    JOIN subjects s ON t.subject_id = s.id
-    JOIN teachers te ON t.teacher_id = te.id
-    ORDER BY t.created_at DESC LIMIT 8
-");
+$error = '';
+$success = '';
+$tab = isset($_GET['tab']) ? $_GET['tab'] : 'login';
+
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $action = $_POST['action'] ?? '';
+
+    if ($action === 'login') {
+        $username = trim($_POST['username'] ?? '');
+        $password = $_POST['password'] ?? '';
+
+        if ($username && $password) {
+            $stmt = $conn->prepare("SELECT id, username, password FROM users WHERE username = ?");
+            $stmt->bind_param("s", $username);
+            $stmt->execute();
+            $result = $stmt->get_result();
+
+            if ($row = $result->fetch_assoc()) {
+                if (password_verify($password, $row['password'])) {
+                    $_SESSION['user_id'] = $row['id'];
+                    $_SESSION['username'] = $row['username'];
+                    header("Location: dashboard.php");
+                    exit;
+                }
+            }
+            $error = "Invalid username or password.";
+            $stmt->close();
+        } else {
+            $error = "Please fill in all fields.";
+        }
+        $tab = 'login';
+    } elseif ($action === 'signup') {
+        $username = trim($_POST['signup_username'] ?? '');
+        $password = $_POST['signup_password'] ?? '';
+        $confirm_password = $_POST['confirm_password'] ?? '';
+
+        if (!$username || !$password || !$confirm_password) {
+            $error = "All fields are required.";
+        } elseif (strlen($username) < 3) {
+            $error = "Username must be at least 3 characters.";
+        } elseif (strlen($password) < 6) {
+            $error = "Password must be at least 6 characters.";
+        } elseif ($password !== $confirm_password) {
+            $error = "Passwords do not match.";
+        } else {
+            $hashed_password = password_hash($password, PASSWORD_DEFAULT);
+            $stmt = $conn->prepare("INSERT INTO users (username, password) VALUES (?, ?)");
+            $stmt->bind_param("ss", $username, $hashed_password);
+            
+            if ($stmt->execute()) {
+                $success = "Account created successfully! Please log in.";
+                $tab = 'login';
+            } else {
+                if ($conn->errno === 1062) {
+                    $error = "Username already exists.";
+                } else {
+                    $error = "Error creating account. Please try again.";
+                }
+            }
+            $stmt->close();
+        }
+        if (!$success) {
+            $tab = 'signup';
+        }
+    }
+}
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Dashboard — EduSchedule</title>
+<title>Login — EduSchedule</title>
 <link rel="stylesheet" href="../css/style.css">
+<style>
+.tab-content {
+  display: none;
+}
+.tab-content.active {
+  display: block;
+}
+.form-group { margin-bottom: 16px; }
+input { width: 100%; }
+.btn { width: 100%; justify-content: center; padding: 12px; font-size: 15px; margin-top: 8px; }
+</style>
 </head>
 <body>
-<div class="layout">
-  <?php render_sidebar(); ?>
-  <div class="main">
-    <?php render_topbar('Dashboard', 'Welcome back — here\'s your school overview'); ?>
-    <div class="page-content">
+<div class="login-page">
+  <div class="login-card">
+    <div class="login-logo">
+      <div class="icon">
+        <svg width="28" height="28" fill="none" stroke="white" stroke-width="2" viewBox="0 0 24 24">
+          <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/>
+          <polyline points="9 22 9 12 15 12 15 22"/>
+        </svg>
+      </div>
+      <h1>EduSchedule</h1>
+      <p>School Timetable Management System</p>
+    </div>
+
+    <?php if ($error): ?>
+    <div class="alert alert-error">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      <?= htmlspecialchars($error) ?>
+    </div>
+    <?php endif; ?>
+
+    <?php if ($success): ?>
+    <div class="alert alert-success">
+      <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg>
+      <?= htmlspecialchars($success) ?>
+    </div>
+    <?php endif; ?>
+
+    <!-- Login Form -->
+    <div id="login-tab" class="tab-content <?= $tab === 'login' ? 'active' : '' ?>">
+      <form method="POST" class="login-form">
+        <input type="hidden" name="action" value="login">
+        <div class="form-group">
+          <label for="username">Username</label>
+          <input type="text" id="username" name="username" placeholder="Enter your username"
+                 value="<?= htmlspecialchars($_POST['username'] ?? '') ?>" autocomplete="username">
+        </div>
+        <div class="form-group">
+          <label for="password">Password</label>
+          <input type="password" id="password" name="password" placeholder="Enter your password" autocomplete="current-password">
+        </div>
+        <button type="submit" class="btn btn-primary">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
+          Sign In
+        </button>
+        <div style="text-align: center; margin-top: 20px; font-size: 14px; color: var(--text-secondary);">
+          Don't have an account? <a href="#" onclick="switchTab('signup'); return false;" style="color: var(--accent); font-weight: 600; text-decoration: none;">sign up here</a>
+        </div>
+      </form>
+    </div>
+
+    <!-- Signup Form -->
+    <div id="signup-tab" class="tab-content <?= $tab === 'signup' ? 'active' : '' ?>">
+      <form method="POST" class="login-form">
+        <input type="hidden" name="action" value="signup">
+        <div class="form-group">
+          <label for="signup_username">Username</label>
+          <input type="text" id="signup_username" name="signup_username" placeholder="Choose a username (min. 3 characters)"
+                 value="<?= htmlspecialchars($_POST['signup_username'] ?? '') ?>">
+        </div>
+        <div class="form-group">
+          <label for="signup_password">Password</label>
+          <input type="password" id="signup_password" name="signup_password" placeholder="Create a password (min. 6 characters)">
+        </div>
+        <div class="form-group">
+          <label for="confirm_password">Confirm Password</label>
+          <input type="password" id="confirm_password" name="confirm_password" placeholder="Confirm your password">
+        </div>
+        <button type="submit" class="btn btn-primary">
+          <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Create Account
+        </button>
+        <div style="text-align: center; margin-top: 20px; font-size: 14px; color: var(--text-secondary);">
+          If you have an account, <a href="#" onclick="switchTab('login'); return false;" style="color: var(--accent); font-weight: 600; text-decoration: none;">login here</a>
+        </div>
+      </form>
+    </div>
+
+  </div>
+</div>
+
+<script>
+function switchTab(tab) {
+  document.getElementById('login-tab').classList.remove('active');
+  document.getElementById('signup-tab').classList.remove('active');
+  document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+  
+  if (tab === 'login') {
+    document.getElementById('login-tab').classList.add('active');
+    document.querySelectorAll('.auth-tab')[0].classList.add('active');
+  } else {
+    document.getElementById('signup-tab').classList.add('active');
+    document.querySelectorAll('.auth-tab')[1].classList.add('active');
+  }
+}
+</script>
 
       <div class="stats-grid">
         <div class="stat-card">
